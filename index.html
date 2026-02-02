@@ -77,9 +77,21 @@
         .spinner { width: 40px; height: 40px; border: 4px solid #3b82f6; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        /* 截圖預覽層 */
+        #screenshotPreview { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(5px); }
+        #screenshotImg { max-width: 100%; max-height: 70vh; border-radius: 12px; box-shadow: 0 0 30px rgba(0,0,0,0.5); margin-bottom: 20px; border: 1px solid #334155; }
     </style>
 </head>
 <body class="p-3">
+    <div id="screenshotPreview">
+        <img id="screenshotImg" src="" alt="Screenshot">
+        <div class="flex gap-4">
+            <button onclick="closeScreenshot()" class="px-6 py-2 bg-slate-700 text-white rounded-full font-bold hover:bg-slate-600 transition">✕ 關閉</button>
+            <a id="downloadLink" href="#" download="chart.jpg" class="px-6 py-2 bg-blue-600 text-white rounded-full font-bold hover:bg-blue-500 transition flex items-center gap-2">⬇ 下載圖片</a>
+        </div>
+    </div>
+
     <div id="loadingOverlay"><div class="spinner"></div><div class="text-blue-400 font-bold tracking-widest">高清渲染中...</div></div>
     <div class="max-w-7xl mx-auto">
         <header class="flex flex-col md:flex-row items-center justify-between mb-6 gap-y-4">
@@ -233,8 +245,6 @@
             
             if(grandTotal > 0) {
                 document.getElementById('masterChartWrapper').classList.remove('hidden');
-                
-                // ★ 修正：下方列表 (Legend) 顯示完整資訊
                 const legendEl = document.getElementById('masterLegend');
                 legendEl.innerHTML = '';
                 mLabels.forEach((label, i) => {
@@ -260,14 +270,12 @@
                         segment.style.width = pct + '%';
                         segment.style.backgroundColor = mColors[i];
                         segment.title = `${label}: ${pct.toFixed(1)}%`;
-                        // ★ 純淨圖表：不顯示內部文字
                         barEl.appendChild(segment);
                     });
                 } else {
                     barCont.classList.add('hidden');
                     canvasCont.classList.remove('hidden');
                     if (masterChartInstance) masterChartInstance.destroy();
-                    
                     masterChartInstance = new Chart(ctxM, {
                         type: masterMode,
                         data: { labels: mLabels, datasets: [{ data: mData, backgroundColor: mColors, borderWidth: 0 }]},
@@ -276,10 +284,7 @@
                             cutout: masterMode === 'doughnut' ? '60%' : '0%',
                             scales: masterMode === 'polarArea' ? { r: { ticks: { display: false }, grid: { color: 'rgba(255,255,255,0.1)' } } } : {},
                             layout: { padding: 30 },
-                            plugins: { 
-                                legend: { display: false },
-                                datalabels: { display: false } // ★ 純淨圖表：不顯示外部標籤
-                            }
+                            plugins: { legend: { display: false }, datalabels: { display: false } }
                         }
                     });
                 }
@@ -313,9 +318,8 @@
 
                 if (mode === 'bar') dItems.sort((a, b) => b.cost - a.cost);
                 
-                // ★ 詳細資訊列表：顏色 - 代號 - 備註(黃) - 張數(藍) - 均價(綠) - 總額(白)
                 const legendHTML = dItems.map((item) => {
-                    const noteDisplay = item.note ? `<span class="text-yellow-400 text-[11px] ml-1 truncate">(${item.note})</span>` : '';
+                    const noteDisplay = item.note ? `<span class="text-orange-400 font-bold text-xs ml-1 truncate">(${item.note})</span>` : '';
                     const totalWan = (item.cost / 10000).toFixed(1);
                     return `
                     <div class="detail-row">
@@ -325,9 +329,9 @@
                             ${noteDisplay}
                         </div>
                         <div class="flex items-center flex-shrink-0 gap-2 text-right">
-                            <span class="text-blue-400 font-mono w-12">${item.shares}<span class="text-[9px] text-slate-500 ml-0.5">張</span></span>
-                            <span class="text-emerald-400 font-mono w-12">${item.avgPrice}</span>
-                            <span class="text-white font-mono w-12 font-bold">${totalWan}<span class="text-[9px] text-slate-500 ml-0.5">萬</span></span>
+                            <span class="text-blue-400 font-mono w-12 text-center">${item.shares}<span class="text-[9px] text-slate-500 ml-0.5">張</span></span>
+                            <span class="text-white font-mono w-12 font-bold text-center">${totalWan}<span class="text-[9px] text-slate-500 ml-0.5">萬</span></span>
+                            <span class="text-emerald-400 font-mono w-12 text-center">${item.avgPrice}</span>
                         </div>
                     </div>`;
                 }).join('');
@@ -346,7 +350,11 @@
                         <div class="detail-legend">
                             <div class="flex justify-between px-2 mb-1 text-[9px] text-slate-500">
                                 <span>標的 / 備註</span>
-                                <span class="pr-2">張數 / 均價 / 總額(萬)</span>
+                                <span class="pr-2 flex gap-2 justify-end w-40">
+                                    <span class="w-12 text-center">張數</span>
+                                    <span class="w-12 text-center">總額</span>
+                                    <span class="w-12 text-center">均價</span>
+                                </span>
                             </div>
                             ${legendHTML || '<div class="text-center text-slate-600 text-xs py-2">無資產</div>'}
                         </div>
@@ -469,13 +477,12 @@
                     const tCost = (item.avgPrice * item.shares * 1000) - (item.divRec || 0) - (item.gainRec || 0);
                     const perCost = item.shares > 0 ? (tCost / (item.shares * 1000)).toFixed(2) : 0;
                     
-                    // ★ 列表行排版修復：確保 Cost 不會被切斷
                     body.innerHTML += `
                     <div class="compact-row" data-id="${item.id}">
                         <div class="drag-handle">☰</div>
                         <div class="w-1.5 h-10 rounded-full flex-shrink-0 mr-3" style="background:${stockColor}"></div>
                         <div class="flex-1 flex flex-col justify-center min-w-0 mr-1 overflow-hidden">
-                            <div class="font-bold text-sm text-white truncate mb-0.5">${item.symbol} ${item.note ? `<span class="text-yellow-400 text-[11px] ml-1">(${item.note})</span>` : ''}</div>
+                            <div class="font-bold text-sm text-white truncate mb-0.5">${item.symbol} ${item.note ? `<span class="text-orange-400 font-bold text-xs ml-1">(${item.note})</span>` : ''}</div>
                             <div class="flex items-center text-[11px] leading-none space-x-2">
                                 <span class="bg-slate-800 text-slate-300 px-1 py-0.5 rounded border border-slate-700 whitespace-nowrap text-[9px]">${item.shares} 張</span>
                                 <span class="text-emerald-400 font-mono text-[11px] whitespace-nowrap">${perCost}</span>
@@ -512,19 +519,44 @@
         function addNewChart() { const t=prompt("組別名稱："); if(t){ chartConfigs.push({id:Date.now(), title:t, selectedIds:[], chartType:'bar'}); render(); }}
         function deleteChart(idx) { if(confirm("刪除分組？")) { chartConfigs.splice(idx,1); render(); }}
         function deleteItem(id) { if(confirm("刪除資產？")) { myAssets=myAssets.filter(i=>i.id!==id); render(); }}
-        function toggleChartLabelPos(i) { /* 已整合至 cycleChartMode */ }
         function downloadMasterChart() { captureAndOpenImage(document.getElementById('masterChartBox'), "資產總覽"); }
         function downloadChart(i) { captureAndOpenImage(document.getElementById(`chart-box-${i}`), chartConfigs[i].title); }
+
+        // ★★★ 核心修復：截圖邏輯增強 ★★★
         function captureAndOpenImage(el, name) {
-            const loading = document.getElementById('loadingOverlay'); loading.style.display='flex'; el.classList.add('capturing');
+            const loading = document.getElementById('loadingOverlay'); 
+            loading.style.display='flex'; 
+            el.classList.add('capturing');
+            
+            // 暫時增加底部 Padding 以防文字被切掉
+            const originalPb = el.style.paddingBottom;
+            el.style.paddingBottom = '50px'; 
+            
             setTimeout(() => {
                 html2canvas(el, { scale:4, backgroundColor:getThemeColor('--bg-card') }).then(canvas => {
-                    loading.style.display='none'; el.classList.remove('capturing');
-                    const win = window.open();
-                    win.document.write(`<body style="margin:0;background:#111;display:flex;justify-content:center;align-items:center;"><img src="${canvas.toDataURL('image/jpeg', 0.9)}" style="max-width:95%; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.5)"></body>`);
+                    // 復原狀態
+                    el.style.paddingBottom = originalPb;
+                    loading.style.display='none'; 
+                    el.classList.remove('capturing');
+                    
+                    const imgData = canvas.toDataURL('image/jpeg', 0.9);
+                    const preview = document.getElementById('screenshotPreview');
+                    const img = document.getElementById('screenshotImg');
+                    const downloadLink = document.getElementById('downloadLink');
+                    
+                    img.src = imgData;
+                    downloadLink.href = imgData;
+                    downloadLink.download = name + '.jpg';
+                    
+                    preview.style.display = 'flex';
                 });
             }, 200);
         }
+
+        function closeScreenshot() {
+            document.getElementById('screenshotPreview').style.display = 'none';
+        }
+
         function copyToClipboard() { const d = btoa(encodeURIComponent(JSON.stringify({myAssets, chartConfigs}))); navigator.clipboard.writeText(d).then(()=>alert("備份成功！")); }
         function importFromText() { const c = prompt("輸入代碼："); if(c){ try { const d=JSON.parse(decodeURIComponent(atob(c))); myAssets=d.myAssets; chartConfigs=d.chartConfigs; render(); }catch(e){alert("失敗");}}}
         window.onload = () => { updateEditUI(); Chart.register(ChartDataLabels); render(); };
