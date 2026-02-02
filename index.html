@@ -55,8 +55,9 @@
         .legend-item { display: flex; align-items: center; font-size: 12px; color: var(--text-main); background: rgba(255,255,255,0.05); padding: 6px 10px; border-radius: 6px; width: calc(50% - 5px); box-sizing: border-box; }
         @media(min-width: 768px) { .legend-item { width: auto; } }
 
+        /* 優化：增加 row 的上下 padding，給文字更多空間 */
         .detail-legend { margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 8px; }
-        .detail-row { display: flex; align-items: center; padding: 6px 8px; border-radius: 6px; margin-bottom: 4px; background: rgba(0,0,0,0.2); font-size: 12px; }
+        .detail-row { display: flex; align-items: center; padding: 8px 8px; border-radius: 6px; margin-bottom: 4px; background: rgba(0,0,0,0.2); font-size: 12px; }
         .detail-row:hover { background: rgba(255,255,255,0.05); }
         
         .checkbox-group { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px; }
@@ -315,15 +316,20 @@
                 if (mode === 'bar') dItems.sort((a, b) => b.cost - a.cost);
                 
                 const legendHTML = dItems.map((item) => {
-                    // ★ 修復：加入 padding-bottom: 2px 確保中文字腳不被切掉
-                    const noteDisplay = item.note ? `<span class="text-orange-400 font-bold text-xs ml-1 truncate leading-relaxed" style="padding-bottom:2px;">(${item.note})</span>` : '';
+                    // ★ 修復核心：對齊與間距
+                    // 1. py-0.5: 增加垂直內距，防止切邊
+                    // 2. leading-tight: 避免字體過高
+                    // 3. inline-block & align-middle: 確保與圓點垂直置中
+                    const noteDisplay = item.note ? `<span class="text-orange-400 font-bold text-xs ml-1 truncate leading-tight py-0.5 inline-block align-middle">(${item.note})</span>` : '';
                     const totalWan = (item.cost / 10000).toFixed(1);
                     return `
                     <div class="detail-row">
-                        <div class="flex items-center min-w-0 flex-1 pb-1">
+                        <div class="flex items-center min-w-0 flex-1">
                             <div class="w-2.5 h-2.5 rounded-full flex-shrink-0 mr-2" style="background:${item.color}"></div>
-                            <span class="text-white font-bold mr-1 leading-normal">${item.symbol}</span>
-                            ${noteDisplay}
+                            <div class="flex items-center overflow-hidden -mt-0.5">
+                                <span class="text-white font-bold mr-1 leading-tight py-0.5 inline-block align-middle">${item.symbol}</span>
+                                ${noteDisplay}
+                            </div>
                         </div>
                         <div class="flex items-center flex-shrink-0 gap-2 text-right">
                             <span class="text-blue-400 font-mono w-12 text-center">${item.shares}<span class="text-[9px] text-slate-500 ml-0.5">張</span></span>
@@ -524,13 +530,12 @@
             loading.style.display='flex'; 
             el.classList.add('capturing');
             
-            // ★ 強制增加 50px 的底部緩衝，防止文字被切
+            // 保持底部緩衝，以防萬一
             const originalPb = el.style.paddingBottom;
             el.style.paddingBottom = '50px'; 
             
             setTimeout(() => {
                 html2canvas(el, { scale:4, backgroundColor:getThemeColor('--bg-card') }).then(canvas => {
-                    // 恢復原狀
                     el.style.paddingBottom = originalPb;
                     loading.style.display='none'; 
                     el.classList.remove('capturing');
