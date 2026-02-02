@@ -47,12 +47,10 @@
         .chart-container { min-height: 280px; position: relative; display: flex; justify-content: center; align-items: center; }
         .master-container { padding: 10px; }
         
-        /* 積木條形圖樣式 (純淨版) */
         .stacked-bar-container { width: 100%; height: 40px; display: flex; border-radius: 10px; overflow: hidden; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); border: 1px solid var(--border-color); position: relative; }
         .bar-segment { height: 100%; transition: width 0.5s ease; position: relative; }
         .bar-segment:hover { opacity: 0.9; transform: scaleY(1.05); z-index: 10; }
         
-        /* 列表樣式優化 */
         .master-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px; }
         .legend-item { display: flex; align-items: center; font-size: 12px; color: var(--text-main); background: rgba(255,255,255,0.05); padding: 6px 10px; border-radius: 6px; width: calc(50% - 5px); box-sizing: border-box; }
         @media(min-width: 768px) { .legend-item { width: auto; } }
@@ -61,7 +59,6 @@
         .detail-row { display: flex; align-items: center; padding: 6px 8px; border-radius: 6px; margin-bottom: 4px; background: rgba(0,0,0,0.2); font-size: 12px; }
         .detail-row:hover { background: rgba(255,255,255,0.05); }
         
-        /* Checkbox 樣式 */
         .checkbox-group { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px; }
         .checkbox-label { display: flex; align-items: center; font-size: 12px; color: #94a3b8; cursor: pointer; }
         .checkbox-label input { margin-right: 6px; accent-color: #3b82f6; }
@@ -78,7 +75,6 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         
-        /* 截圖預覽層 */
         #screenshotPreview { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(5px); }
         #screenshotImg { max-width: 100%; max-height: 70vh; border-radius: 12px; box-shadow: 0 0 30px rgba(0,0,0,0.5); margin-bottom: 20px; border: 1px solid #334155; }
     </style>
@@ -319,13 +315,14 @@
                 if (mode === 'bar') dItems.sort((a, b) => b.cost - a.cost);
                 
                 const legendHTML = dItems.map((item) => {
-                    const noteDisplay = item.note ? `<span class="text-orange-400 font-bold text-xs ml-1 truncate">(${item.note})</span>` : '';
+                    // ★ 修復：加入 padding-bottom: 2px 確保中文字腳不被切掉
+                    const noteDisplay = item.note ? `<span class="text-orange-400 font-bold text-xs ml-1 truncate leading-relaxed" style="padding-bottom:2px;">(${item.note})</span>` : '';
                     const totalWan = (item.cost / 10000).toFixed(1);
                     return `
                     <div class="detail-row">
-                        <div class="flex items-center min-w-0 flex-1">
+                        <div class="flex items-center min-w-0 flex-1 pb-1">
                             <div class="w-2.5 h-2.5 rounded-full flex-shrink-0 mr-2" style="background:${item.color}"></div>
-                            <span class="text-white font-bold mr-1">${item.symbol}</span>
+                            <span class="text-white font-bold mr-1 leading-normal">${item.symbol}</span>
                             ${noteDisplay}
                         </div>
                         <div class="flex items-center flex-shrink-0 gap-2 text-right">
@@ -522,19 +519,18 @@
         function downloadMasterChart() { captureAndOpenImage(document.getElementById('masterChartBox'), "資產總覽"); }
         function downloadChart(i) { captureAndOpenImage(document.getElementById(`chart-box-${i}`), chartConfigs[i].title); }
 
-        // ★★★ 核心修復：截圖邏輯增強 ★★★
         function captureAndOpenImage(el, name) {
             const loading = document.getElementById('loadingOverlay'); 
             loading.style.display='flex'; 
             el.classList.add('capturing');
             
-            // 暫時增加底部 Padding 以防文字被切掉
+            // ★ 強制增加 50px 的底部緩衝，防止文字被切
             const originalPb = el.style.paddingBottom;
             el.style.paddingBottom = '50px'; 
             
             setTimeout(() => {
                 html2canvas(el, { scale:4, backgroundColor:getThemeColor('--bg-card') }).then(canvas => {
-                    // 復原狀態
+                    // 恢復原狀
                     el.style.paddingBottom = originalPb;
                     loading.style.display='none'; 
                     el.classList.remove('capturing');
