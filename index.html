@@ -44,17 +44,17 @@
         .chart-box { background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-color); padding: 15px; margin-bottom: 12px; position: relative; }
         .master-chart-box { border: 2px solid #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.15); }
         
-        .chart-container { min-height: 320px; position: relative; display: flex; justify-content: center; align-items: center; }
+        .chart-container { min-height: 280px; position: relative; display: flex; justify-content: center; align-items: center; }
         .master-container { padding: 10px; }
         
-        /* 積木條形圖樣式 */
+        /* 積木條形圖樣式 (純淨版) */
         .stacked-bar-container { width: 100%; height: 40px; display: flex; border-radius: 10px; overflow: hidden; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); border: 1px solid var(--border-color); position: relative; }
-        .bar-segment { height: 100%; transition: width 0.5s ease; position: relative; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.8); overflow: hidden; white-space: nowrap; }
+        .bar-segment { height: 100%; transition: width 0.5s ease; position: relative; }
         .bar-segment:hover { opacity: 0.9; transform: scaleY(1.05); z-index: 10; }
         
-        /* 列表樣式 */
+        /* 列表樣式優化 */
         .master-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px; }
-        .legend-item { display: flex; align-items: center; font-size: 12px; color: var(--text-main); background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px; width: calc(50% - 5px); box-sizing: border-box; }
+        .legend-item { display: flex; align-items: center; font-size: 12px; color: var(--text-main); background: rgba(255,255,255,0.05); padding: 6px 10px; border-radius: 6px; width: calc(50% - 5px); box-sizing: border-box; }
         @media(min-width: 768px) { .legend-item { width: auto; } }
 
         .detail-legend { margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 8px; }
@@ -117,7 +117,7 @@
 
         <div class="edit-only mb-4">
             <div class="checkbox-group shadow-lg border border-slate-700">
-                <span class="text-xs font-bold text-blue-400 mr-2">圖表內顯示項目：</span>
+                <span class="text-xs font-bold text-blue-400 mr-2">分組圖表顯示項目：</span>
                 <label class="checkbox-label"><input type="checkbox" id="showSym" onchange="updateLabelPrefs()" checked> 代號</label>
                 <label class="checkbox-label"><input type="checkbox" id="showNote" onchange="updateLabelPrefs()"> 備註</label>
                 <label class="checkbox-label"><input type="checkbox" id="showShares" onchange="updateLabelPrefs()" checked> 張數</label>
@@ -175,6 +175,7 @@
             const btn = document.getElementById('editBtn'); 
             if (isEditing) { document.body.classList.add('is-editing'); btn.innerText = '✎ 編輯模式：ON'; btn.classList.add('text-yellow-400'); } 
             else { document.body.classList.remove('is-editing', 'is-sorting'); btn.innerText = '✎ 編輯模式：OFF'; btn.classList.remove('text-yellow-400'); }
+            
             document.getElementById('showSym').checked = labelPrefs.showSym;
             document.getElementById('showNote').checked = labelPrefs.showNote;
             document.getElementById('showShares').checked = labelPrefs.showShares;
@@ -233,13 +234,14 @@
             if(grandTotal > 0) {
                 document.getElementById('masterChartWrapper').classList.remove('hidden');
                 
+                // ★ 修正：下方列表 (Legend) 顯示完整資訊
                 const legendEl = document.getElementById('masterLegend');
                 legendEl.innerHTML = '';
                 mLabels.forEach((label, i) => {
                     const pct = ((mData[i] / grandTotal) * 100).toFixed(1) + '%';
                     const valWan = (mData[i] / 10000).toFixed(1) + '萬';
                     const color = mColors[i];
-                    legendEl.innerHTML += `<div class="legend-item"><div class="w-3 h-3 rounded-full mr-2" style="background:${color}"></div><span class="mr-1">${label}</span><div class="ml-auto flex items-center gap-1"><span class="text-white font-bold">${valWan}</span><span class="text-slate-500 text-[10px]">(${pct})</span></div></div>`;
+                    legendEl.innerHTML += `<div class="legend-item"><div class="w-3 h-3 rounded-full mr-2" style="background:${color}"></div><span class="mr-1 text-slate-200">${label}</span><div class="ml-auto flex items-center gap-1"><span class="text-white font-bold">${valWan}</span><span class="text-slate-500 text-[10px]">(${pct})</span></div></div>`;
                 });
 
                 const ctxM = document.getElementById('masterCanvas').getContext('2d');
@@ -253,13 +255,12 @@
                     barEl.innerHTML = '';
                     mLabels.forEach((label, i) => {
                         const pct = (mData[i] / grandTotal) * 100;
-                        const valWan = (mData[i] / 10000).toFixed(1) + '萬';
                         const segment = document.createElement('div');
                         segment.className = 'bar-segment';
                         segment.style.width = pct + '%';
                         segment.style.backgroundColor = mColors[i];
-                        segment.title = `${label}: ${valWan} (${pct.toFixed(1)}%)`;
-                        if(pct > 2.5) segment.innerText = valWan; 
+                        segment.title = `${label}: ${pct.toFixed(1)}%`;
+                        // ★ 純淨圖表：不顯示內部文字
                         barEl.appendChild(segment);
                     });
                 } else {
@@ -277,13 +278,7 @@
                             layout: { padding: 30 },
                             plugins: { 
                                 legend: { display: false },
-                                datalabels: {
-                                    color: (c) => masterMode === 'doughnut' ? getThemeColor('--text-main') : '#fff',
-                                    anchor: 'end', align: 'end', offset: 4,
-                                    textAlign: 'center', 
-                                    font: { weight: 'bold', size: 11 },
-                                    formatter: (v, c) => c.chart.data.labels[c.dataIndex] + '\n' + (v/10000).toFixed(1) + '萬'
-                                }
+                                datalabels: { display: false } // ★ 純淨圖表：不顯示外部標籤
                             }
                         }
                     });
@@ -318,7 +313,7 @@
 
                 if (mode === 'bar') dItems.sort((a, b) => b.cost - a.cost);
                 
-                // ★ 詳細資訊列表：顏色-代號-備註(黃)-張數(藍)-均價(綠)-總額(白)
+                // ★ 詳細資訊列表：顏色 - 代號 - 備註(黃) - 張數(藍) - 均價(綠) - 總額(白)
                 const legendHTML = dItems.map((item) => {
                     const noteDisplay = item.note ? `<span class="text-yellow-400 text-[11px] ml-1 truncate">(${item.note})</span>` : '';
                     const totalWan = (item.cost / 10000).toFixed(1);
@@ -474,17 +469,18 @@
                     const tCost = (item.avgPrice * item.shares * 1000) - (item.divRec || 0) - (item.gainRec || 0);
                     const perCost = item.shares > 0 ? (tCost / (item.shares * 1000)).toFixed(2) : 0;
                     
+                    // ★ 列表行排版修復：確保 Cost 不會被切斷
                     body.innerHTML += `
                     <div class="compact-row" data-id="${item.id}">
                         <div class="drag-handle">☰</div>
                         <div class="w-1.5 h-10 rounded-full flex-shrink-0 mr-3" style="background:${stockColor}"></div>
                         <div class="flex-1 flex flex-col justify-center min-w-0 mr-1 overflow-hidden">
-                            <div class="font-bold text-sm text-white truncate mb-0.5">${item.symbol}</div>
-                            <div class="flex items-center text-[11px] leading-none">
-                                <span class="bg-slate-800 text-slate-300 px-1 py-0.5 rounded mr-1 flex-shrink-0 border border-slate-700 whitespace-nowrap text-[9px]">${item.shares} 張</span>
-                                <span class="text-emerald-400 font-mono text-[10px] truncate" title="成本: ${perCost}">成本: ${perCost}</span>
+                            <div class="font-bold text-sm text-white truncate mb-0.5">${item.symbol} ${item.note ? `<span class="text-yellow-400 text-[11px] ml-1">(${item.note})</span>` : ''}</div>
+                            <div class="flex items-center text-[11px] leading-none space-x-2">
+                                <span class="bg-slate-800 text-slate-300 px-1 py-0.5 rounded border border-slate-700 whitespace-nowrap text-[9px]">${item.shares} 張</span>
+                                <span class="text-emerald-400 font-mono text-[11px] whitespace-nowrap">${perCost}</span>
+                                <span class="text-slate-500 text-[9px] ml-auto">(${(tCost/10000).toFixed(1)}萬)</span>
                             </div>
-                            ${item.note ? `<div class="text-[10px] text-yellow-500/80 mt-0.5 italic truncate">${item.note}</div>` : ''}
                         </div>
                         <div class="flex gap-[1px] flex-shrink-0 items-center ml-1">${btns}</div>
                         <div class="flex gap-1 flex-shrink-0 ml-1 items-center">
